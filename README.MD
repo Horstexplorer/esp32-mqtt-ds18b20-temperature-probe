@@ -15,5 +15,12 @@ The following values need to be adjusted in main.cpp
 `PUBSUB_CLIENT_ID` MQTT client id  
 
 ## Default behaviour
-Publishes temperature readouts in celsius and fahrenheit every 30 seconds as json payload to topic `temperature-probe/<deviceid>`  
-```{"device_id":"<deviceid>","celsius":25.937500,"fahrenheit":78.687500}```
+Publishes temperature readouts in celsius and fahrenheit every 30 seconds as json payload to topic `temperature-probe`  
+```
+{
+  "device_id": "<device mac id>",           // unique esp identifier
+  "sensor_id": <int>,                       // id of the sensor
+  "celsius": <double>,                      // temperature measurement in celsius
+  "fahrenheit": <double>                    // temperature measurement in fahrenheit
+}
+```

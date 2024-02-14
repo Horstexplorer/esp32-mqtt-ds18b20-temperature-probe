@@ -54,6 +54,7 @@ void wifi_client_setup_dhcp(char* wifi_ssid, char* wifi_password, bool auto_reco
 #define PUBSUB_USERNAME "temperature-probe"
 #define PUBSUB_PASSWORD ""
 #define PUBSUB_CLIENT_ID "temperature-probe"
+#define PUBSUB_TOPIC "temperature-probe"
 
 WiFiClient wifi_client;
 PubSubClient pub_sub_client(wifi_client);
@@ -94,9 +95,14 @@ std::string get_unique_device_id() {
     return stringStream.str();
 }
 
-std::string json_temperature_payload(float celsius, float fahrenheit) {
+std::string json_sensor_payload(int index, float celsius, float fahrenheit) {
     std::stringstream payload = std::stringstream();
-    payload << R"({"device_id":")" << get_unique_device_id() << R"(","celsius":)" << std::to_string(celsius) << R"(,"fahrenheit":)" << std::to_string(fahrenheit) << R"(})";
+    payload
+        << R"({"device_id":")" << get_unique_device_id()
+        << R"(","sensor_id":)" << std::to_string(index)
+        << R"(,"celsius":)" << std::to_string(celsius)
+        << R"(,"fahrenheit":)" << std::to_string(fahrenheit)
+        << R"(})";
     return payload.str();
 }
 
@@ -104,11 +110,13 @@ void read_and_publish_temperature() {
     Serial.println("<Measurement> Measuring Temperature...");
     sensors.setWaitForConversion(true);
     sensors.requestTemperatures();
-    float tempC = sensors.getTempCByIndex(0);
-    float tempF = sensors.getTempFByIndex(0);
-    std::string payload = json_temperature_payload(tempC, tempF);
-    Serial.println(("<Measurement> " + payload).c_str());
-    mqtt_publish((char*) ("temperature-probe/" +  get_unique_device_id()).c_str(),(char*) payload.c_str());
+    for (int index = 0; index < sensors.getDS18Count(); index++) {
+        float tempC = sensors.getTempCByIndex(index);
+        float tempF = sensors.getTempFByIndex(index);
+        std::string payload = json_sensor_payload(index, tempC, tempF);
+        Serial.println(("<Measurement> " + payload).c_str());
+        mqtt_publish((char*) PUBSUB_TOPIC,(char*) payload.c_str());
+    }
 }
 
 void setup() {
@@ -125,6 +133,8 @@ void setup() {
     wifi_client_setup_dhcp((char*) WIFI_SSID, (char*) WIFI_PASSWORD);
     // setup mqtt
     mqtt_setup(PUBSUB_SERVER_ADDRESS, PUBSUB_SERVER_PORT, (char*) PUBSUB_USERNAME, (char*) PUBSUB_PASSWORD, (char*) PUBSUB_CLIENT_ID);
+    // initial data
+    read_and_publish_temperature();
     // setup ticker
     ticker.attach_ms(MEASUREMENT_INTERVAL_MS, read_and_publish_temperature);
 }
